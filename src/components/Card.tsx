@@ -49,10 +49,11 @@ const Card: React.FC<CarCardProps> = ({
   username 
 }) => {
   const navigation = useNavigation<CardNavigationProp>();
-
+ 
   const handleViewDetails = () => {
     try {
       // Helper function to extract seller information
+      console.log("user in handle view details",user);
       const getSellerInfo = () => {
         // If we have a complete user object with _id and name
         if (user && typeof user === 'object' && (user._id || user.username)) {

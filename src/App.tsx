@@ -86,7 +86,7 @@ const AppContent = () => {
 
 const LandingPageStack = () => {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator initialRouteName="Landing">
       <Stack.Screen name="Landing" component={LandingPage} />
       <Stack.Screen name="Register" component={RegisterPage} />
       <Stack.Screen name="Login" component={LoginPage} />
@@ -122,9 +122,10 @@ const App = () => {
     await notifee.requestPermission();
     await messaging().requestPermission();
     const fcmToken = await messaging().getToken();
-    const loggedInUserId = await AsyncStorage.getItem('userId');
+    const loggedInUserId = await AsyncStorage.getItem('user');
+    console.log("User ID:", loggedInUserId);
     if (fcmToken && loggedInUserId) {
-      await api.post('http://your-backend/api/save-token', {
+      await api.post('/save-token', {
         token: fcmToken,
         userId: loggedInUserId,
       });

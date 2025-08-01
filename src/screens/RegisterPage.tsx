@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   TextInput,
@@ -13,6 +13,8 @@ import CustomText from "../components/CustomText";
 import { useAuth } from "../context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../config/api";
+import { Snackbar } from 'react-native-paper';
+import { getFCMToken } from "../utils/fcm";
 
 const RegistrationSchema = Yup.object().shape({
   name: Yup.string().min(3, "Too short!").required("Required"),
@@ -27,6 +29,17 @@ const RegisterPage = () => {
   const navigation = useNavigation();
   const { setIsLoggedIn } = useAuth();
 
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get FCM token when component mounts
+    const getToken = async () => {
+      const token = await getFCMToken();
+      setFcmToken(token);
+    };
+    getToken();
+  }, []);
+
   const handleSubmit = async (values: {
     name: string;
     email: string;
@@ -39,7 +52,10 @@ const RegisterPage = () => {
       username: values.name,
       email: values.email,
       password: values.password,
+      fcmToken: fcmToken
     };
+    
+    console.log("Sending registration data:", userData);
 
     try {
       const response = await api.post(`/api/users/register`, userData);
@@ -160,70 +176,72 @@ const RegisterPage = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingLeft: 20,
-    justifyContent: "center",
-    backgroundColor: "#111510",
+    padding: 24,
+    justifyContent: 'center',
+    backgroundColor: '#F5F8F4', // Light dusty green
   },
   logo: {
-    color: "slategray",
-    fontSize: 24,
-    fontWeight: "bold",
-    marginTop: 100,
+    color: '#708238', // Olive green
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginTop: 60,
+    marginBottom: 10,
   },
   title: {
-    color: "white",
-    fontSize: 32,
-    fontWeight: "bold",
-    paddingTop: 20,
-    marginBottom: 40,
+    color: '#3A4D2F',
+    fontSize: 26,
+    fontWeight: 'bold',
+    paddingTop: 10,
+    marginBottom: 30,
   },
   input: {
-    backgroundColor: "#2E352B",
-    padding: 12,
-    borderColor: "gray",
+    backgroundColor: '#E6EDE3', // Pale green
+    padding: 14,
+    borderColor: '#C3D3BD',
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 14,
     marginBottom: 10,
-    marginRight: 20,
+    color: '#1A1A1A',
+    marginRight: 10,
+    elevation: 1,
   },
   error: {
-    color: "red",
+    color: 'red',
     fontSize: 12,
     marginBottom: 8,
   },
   button: {
-    backgroundColor: "#8BD379",
-    alignItems: "center",
-    padding: 12,
-    borderColor: "gray",
-    borderWidth: 2,
-    borderRadius: 16,
-    marginRight: 20,
+    backgroundColor: '#708238', // Olive green
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    marginRight: 10,
     marginTop: 20,
+    elevation: 2,
   },
   buttonText: {
-    color: "black",
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   footerText: {
-    color: "white",
-    textAlign: "center",
+    color: '#4A4A4A',
+    textAlign: 'center',
     marginTop: 30,
     paddingBottom: 10,
   },
   link: {
-    color: "#50D3A7",
-    fontWeight: "bold",
+    color: '#3F5E2A',
+    fontWeight: 'bold',
   },
   line: {
-    width: 200,
-    height: 10,
-    backgroundColor: "slategray",
+    width: 160,
+    height: 6,
+    backgroundColor: '#B8CBA8',
     borderRadius: 5,
-    alignSelf: "center",
-    marginTop: 100,
-    marginBottom: 50,
+    alignSelf: 'center',
+    marginTop: 60,
+    marginBottom: 40,
   },
 });
 

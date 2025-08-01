@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   TextInput,
@@ -13,6 +13,9 @@ import CustomText from "../components/CustomText";
 import { useAuth } from "../context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../config/api";
+import { Button, Snackbar } from 'react-native-paper';
+
+
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().email("Invalid email").required("Required"),
@@ -22,32 +25,80 @@ const LoginSchema = Yup.object().shape({
 const LoginPage = () => {
   const navigation = useNavigation();
   const { setIsLoggedIn } = useAuth();
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const navigate = useNavigation();
+  
+  const showSnackbar = (message: string) => {
+    setSnackbarMessage(message);
+    setSnackbarVisible(true);
+  };
 
   const handleLogin = async (values: { email: string; password: string }) => {
     const userData = {
       email: values.email,
       password: values.password,
     };
-
+  
     try {
+      console.log("Login request body:", userData);
       const response = await api.post(`/api/users/login`, userData);
-      const { user, accessToken, refreshToken, expiresIn } = response.data.data;
-
+      
+      // Log the complete response for debugging
+      console.log("Complete login response:", JSON.stringify(response, null, 2));
+      console.log("Response data:", response.data);
+      
+      if (!response.data) {
+        throw new Error('No data in response');
+      }
+      
+      const { access, refresh, user } = response.data;
+      
+      if (!access || !refresh) {
+        console.error('Missing tokens in response:', { access, refresh });
+        throw new Error('Invalid response format from server');
+      }
+      
+      console.log('Access token:', access.token);
+      console.log('Refresh token:', refresh.token);
+  
       // Store tokens and user data in AsyncStorage
-      await AsyncStorage.setItem("accessToken", accessToken);
-      await AsyncStorage.setItem("refreshToken", refreshToken);
-      await AsyncStorage.setItem("user", JSON.stringify(user));
+      await AsyncStorage.setItem("accessToken", access.token);
+      await AsyncStorage.setItem("refreshToken", refresh.token);
       await AsyncStorage.setItem("isLoggedIn", "true");
-
+      await AsyncStorage.setItem("user", JSON.stringify(user));
+      
+      // Set auth state
       setIsLoggedIn(true);
       navigation.navigate("HomePage");
     } catch (error: any) {
-      console.error("Login error:", error.response?.data || error.message);
-      Alert.alert("Error", error.response?.data?.message || "Login failed");
+      console.error("Login error:", error);
+      let errorMessage = "An unexpected error occurred";
+      
+      if (error.response) {
+        errorMessage = error.response.data?.message || error.response.statusText || "Login failed";
+      } else if (error.request) {
+        errorMessage = "No response from server. Please check your internet connection.";
+      } else {
+        errorMessage = error.message || "Login failed";
+      }
+      showSnackbar(errorMessage);
     }
   };
 
   return (
+    <>
+    <Button onPress={() => navigation.navigate("Landing")}>
+    Landing
+    </Button>
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+        style={{ backgroundColor: '#ff4444' }}
+      >
+        {snackbarMessage}
+      </Snackbar>
     <View style={styles.container}>
       <CustomText style={styles.logo}>R3X</CustomText>
       <CustomText style={styles.title}>Welcome Back! Login</CustomText>
@@ -118,37 +169,38 @@ const LoginPage = () => {
 
       <View style={styles.line} />
     </View>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingLeft: 20,
-    justifyContent: "center",
-    backgroundColor: "#111510",
+    padding: 24,
+    justifyContent: 'center',
+    backgroundColor: '#F5F8F4', // Soft dusty green
   },
   logo: {
-    color: "slategray",
-    fontSize: 24,
-    fontWeight: "bold",
-    marginTop: 100,
+    color: '#708238',
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
   title: {
-    color: "white",
-    fontSize: 32,
-    fontWeight: "bold",
-    paddingTop: 20,
-    marginBottom: 40,
+    color: '#3A4D2F',
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 30,
   },
   input: {
-    backgroundColor: "#2E352B",
-    padding: 12,
-    borderColor: "gray",
+    backgroundColor: '#E6EDE3',
+    padding: 14,
+    borderRadius: 14,
     borderWidth: 1,
-    borderRadius: 16,
-    marginBottom: 10,
-    marginRight: 20,
+    borderColor: '#C3D3BD',
+    marginBottom: 12,
+    color: '#1A1A1A',
+    elevation: 1,
   },
   error: {
     color: "red",
@@ -156,39 +208,36 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   button: {
-    backgroundColor: "#8BD379",
-    alignItems: "center",
-    padding: 12,
-    borderColor: "gray",
-    borderWidth: 2,
-    borderRadius: 16,
-    marginRight: 20,
-    marginTop: 20,
+    backgroundColor: '#708238',
+    padding: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 10,
+    elevation: 2,
   },
   buttonText: {
-    color: "black",
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: '600',
   },
   footerText: {
-    color: "white",
-    textAlign: "center",
-    marginTop: 30,
-    paddingBottom: 10,
+    color: '#4A4A4A',
+    textAlign: 'center',
+    marginTop: 40,
   },
   link: {
-    color: "#50D3A7",
-    fontWeight: "bold",
+    color: '#3F5E2A',
+    fontWeight: 'bold',
   },
   line: {
-    width: 200,
-    height: 10,
-    backgroundColor: "slategray",
+    width: 160,
+    height: 6,
+    backgroundColor: '#B8CBA8',
     borderRadius: 5,
-    alignSelf: "center",
-    marginTop: 100,
-    marginBottom: 50,
+    alignSelf: 'center',
+    marginTop: 40,
   },
 });
+
 
 export default LoginPage;

@@ -38,12 +38,6 @@ type DetailsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const getSellerName = (item: ItemType): string => {
   if (!item) return 'Unknown Seller';
   
-  console.log('Item in getSellerName:', JSON.stringify({
-    user: item.user,
-    userName: item.userName,
-    userId: item.userId
-  }, null, 2));
-  
   // If user is a complete object with name
   if (item.user && typeof item.user === 'object') {
     if ('name' in item.user && item.user.name) {
@@ -88,9 +82,9 @@ const Details: React.FC = () => {
   // Log detailed user information for debugging
   useEffect(() => {
     console.log('Item data in Details:', {
-      user: item.user,
-      userName: item.userName,
-      userId: item.userId,
+      user: item?.user,
+      userName: item?.userName,
+      userId: item?.userId,
       fullItem: item
     });
     
@@ -100,18 +94,16 @@ const Details: React.FC = () => {
 
   const handleCheckAvailability = async () => {
     try {
-      // Debug log to see the item structure
-      console.log('Item in handleCheckAvailability:', JSON.stringify(item, null, 2));
       
       // Try different ways to get the seller ID
       let sellerId = '';
       
       // Case 1: User is a full object with _id
-      if (item.user && typeof item.user === 'object' && item.user._id) {
+      if (item?.user && typeof item?.user === 'object' && item?.user._id) {
         sellerId = item.user._id;
       } 
       // Case 2: User is a string (could be the ID directly)
-      else if (typeof item.user === 'string') {
+      else if (typeof item?.user === 'string') {
         sellerId = item.user;
       }
       // Case 3: userId is directly on the item
@@ -119,8 +111,6 @@ const Details: React.FC = () => {
         sellerId = item.userId;
       }
       
-      console.log('Extracted sellerId:', sellerId);
-  
       if (!sellerId) {
         console.error('Seller ID not found in item:', item);
         Alert.alert('Error', 'Unable to identify the seller. Please try again later.');
@@ -128,19 +118,31 @@ const Details: React.FC = () => {
       }
 
       // Get the current user's auth token
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('accessToken');
+      const User = await AsyncStorage.getItem('user');
+      const user = JSON.parse(User);
+      console.log('User in handleCheckAvailability:', user);
       if (!token) {
         Alert.alert('Error', 'Please log in to send notifications.');
         return;
       }
 
       try {
+        console.log('Sending notification to seller...', {
+          itemId: item.id,
+          buyerId: user._id,
+          userId: sellerId,
+          title: 'Someone is interested in your item!',
+          message: `${user.username || 'A buyer'} wants to know if "${item.name}" is available.`,
+        });
         const response = await api.post(
           '/api/notifications/send',
           {
+            itemId: item.id,
+            buyerId: user._id,
             userId: sellerId,
             title: 'Someone is interested in your item!',
-            message: `${user?.name || 'A buyer'} wants to know if "${item.name}" is available.`,
+            message: `${user.username || 'A buyer'} wants to know if "${item.name}" is available.`,
           },
           {
             headers: {

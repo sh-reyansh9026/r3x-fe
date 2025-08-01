@@ -77,13 +77,6 @@ const Items = ({navigation}: any) => {
     return result;
   };
 
-  // Update filtered items when dependencies change
-  useEffect(() => {
-    if (apiItems.length > 0) {
-      const filtered = applyFilters();
-      setFilteredItems(filtered);
-    }
-  }, [apiItems, selectedCategory, searchQuery]);
 
   // Handle search input change
   const handleSearch = (query: string) => {
@@ -104,11 +97,12 @@ const Items = ({navigation}: any) => {
           limit: 100,
         },
       });
+      console.log("response",response);
 
       const itemsData = response.data?.data?.results || [];
       const formatted = itemsData.map((item: any) => ({
         id: item._id,
-        username: item.username,
+        username: item.user.username,
         title: item.title,
         price: item.price,
         location: item.location,
@@ -116,13 +110,18 @@ const Items = ({navigation}: any) => {
         category: item.category,
         image: item.images?.[0],
         rating: item.rating,
-        user: item.user,
+        user: item.user, 
+      // "user": {
+      //     "_id": "685432b67d7fe39dbf1c558d",
+      //     "username": "sh.reyansh"
+      // },
         isListed: item.isListed,
         isRequested: item.isRequested,
       }));
 
       setApiItems(formatted);
       // The useEffect will handle updating filteredItems
+      console.log("formatted",formatted);
       setError(null);
     } catch (err: any) {
       console.error('Error fetching items:', err);
@@ -132,11 +131,22 @@ const Items = ({navigation}: any) => {
       setIsRefreshing(false);
     }
   };
+ 
 
+ 
   useEffect(() => {
     fetchItems();
   }, []);
 
+   // Update filtered items when dependencies change
+   useEffect(() => {
+    if (apiItems.length > 0) {
+      const filtered = applyFilters();
+      setFilteredItems(filtered);
+    }
+  }, [apiItems, selectedCategory, searchQuery]);
+  
+  console.log("apiItems",apiItems);
   return (
     <View style={styles.container}>
       <CustomText style={styles.header}>{selectedCategory || 'All Items'}</CustomText>

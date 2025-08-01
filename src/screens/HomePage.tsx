@@ -12,6 +12,7 @@ import Buy from "./Buy";
 import CustomText from '../components/CustomText';
 import api from '../config/api';
 
+
 type HomePageNavigationProp = NativeStackNavigationProp<RootStackParamList, 'HomePage'>;
 
 const HomePage = () => {
@@ -35,9 +36,10 @@ const HomePage = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const spinValue = useRef(new Animated.Value(0)).current;
   const fetchCategories = async () => {
     try {
-      const response = await api.get(`/api/v1/categories`); // replace with your actual backend URL
+      const response = await api.get(`/api/categories`); // replace with your actual backend URL
       const data = response.data?.data?.results || [];
       setCategories(data);
     } catch (err) {
@@ -95,9 +97,24 @@ const HomePage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(spinValue, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: true,
+      }),
+    ).start();
+  }, []);
+
   const openCategory = () => {
     setIsCategoryOpen(!isCategoryOpen);
   };
+
+  const rotateInterpolate = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   return (
     <View style={styles.mainContainer}>
@@ -109,20 +126,35 @@ const HomePage = () => {
         <View style={styles.logoContainer}>
           <CustomText style={styles.logo}>R3X</CustomText>
         </View>
+      <Animated.Image
+          // source={require('../assets/menu.png')}
+          style={[styles.loader, {transform: [{rotate: rotateInterpolate}]}]}
+        />
       </View>
 
       {isCategoryOpen && (
-        <View style={styles.categoryContainer}>
+        <ScrollView
+          style={styles.categoryContainer}
+          horizontal
+          showsHorizontalScrollIndicator={false}>
           {categories.map((category, idx) => (
-            <TouchableOpacity key={idx} onPress={() => navigation.navigate(category.name)}>
-              <Image source={{ uri: category.icon }} style={styles.categoryImage} />
-              <CustomText>{category.name}</CustomText>
+            <TouchableOpacity
+              key={idx}
+              onPress={() => navigation.navigate(category.name)}
+              style={styles.categoryButton}>
+              <Image
+                source={{uri: category.icon}}
+                style={styles.categoryImage}
+              />
+              <CustomText style={styles.categoryName}>
+                {category.name}
+              </CustomText>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       )}
 
-      {/* buy/sell toggle */}
+      {/* buy/sell toggle
       <View style={styles.container}>
         <TouchableOpacity
           onPress={() => setSelected('HomePage')}
@@ -138,6 +170,38 @@ const HomePage = () => {
             Sell
           </CustomText>
         </TouchableOpacity>
+      </View> */}
+
+      {/* Toggle Buy/Sell */}
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          onPress={() => setSelected('HomePage')}
+          style={[
+            styles.toggleButton,
+            selected === 'HomePage' && styles.activeToggle,
+          ]}>
+          <CustomText
+            style={[
+              styles.toggleText,
+              selected === 'HomePage' && styles.activeText,
+            ]}>
+            Buy
+          </CustomText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setSelected('Sell')}
+          style={[
+            styles.toggleButton,
+            selected === 'Sell' && styles.activeToggle,
+          ]}>
+          <CustomText
+            style={[
+              styles.toggleText,
+              selected === 'Sell' && styles.activeText,
+            ]}>
+            Sell
+          </CustomText>
+        </TouchableOpacity>
       </View>
 
       {selected === 'Sell' ? <Sell /> : <Buy />}
@@ -148,27 +212,31 @@ const HomePage = () => {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: "#0F130F",
-    paddingHorizontal: 12,
-    paddingTop: 24
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    paddingTop: 24,
   },
   upperHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 12,
   },
   menuIcon: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
   },
   logoContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   logo: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
+    color: 'black',
+  },
+  loader: {
+    width: 24,
+    height: 24,
   },
   container: {
     flexDirection: 'row',
@@ -195,20 +263,51 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
-  activeText: {
-    color: '#FFF',
-    fontWeight: '600',
-  },
   categoryContainer: {
-    padding: 10,
-    backgroundColor: '#F0F0F0',
-    paddingVertical: 20
+    backgroundColor: '#DCE3D3',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  categoryButton: {
+    alignItems: 'center',
+    marginHorizontal: 8,
   },
   categoryImage: {
     width: 50,
     height: 50,
-    marginBottom: 5,
     borderRadius: 8,
+    marginBottom: 4,
+  },
+  categoryName: {
+    fontSize: 12,
+    color: 'black',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#E1E8D9',
+    borderRadius: 24,
+    padding: 4,
+    marginBottom: 16,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeToggle: {
+    backgroundColor: '#78866B',
+  },
+  toggleText: {
+    fontSize: 16,
+    color: '#5A6B4D',
+  },
+  activeText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
 

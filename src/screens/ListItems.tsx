@@ -147,10 +147,11 @@ const ListItems = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const id = await AsyncStorage.getItem("userId");
-      const name = await AsyncStorage.getItem("userName");
-      setUserId(id || '');
-      setUserName(name || '');
+      const user = await AsyncStorage.getItem("user");
+      console.log(user);
+      const userData = user ? JSON.parse(user) : null;
+      setUserId(userData?._id || '');
+      setUserName(userData?.username || '');
     };
     fetchUser();
   }, []);
@@ -201,6 +202,8 @@ const ListItems = () => {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+
   const handleSubmit = async (values: {
     title: string;
     description: string;
@@ -210,193 +213,82 @@ const ListItems = () => {
     images: any[];
   }) => {
     if (isSubmitting) return;
-    
     setIsSubmitting(true);
-    
+
     try {
-      // Verify we have a valid token before proceeding
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
-        Alert.alert('Session Expired', 'Please log in again.', [
-          { text: 'OK', onPress: () => navigation.navigate('Login' as never) }
-        ]);
-        return;
-      }
-      console.log("Starting item upload process...");
-      
       if (values.images.length === 0) {
         throw new Error("Please select at least one image");
       }
 
-      // Get current user info
       const userJson = await AsyncStorage.getItem('user');
       if (!userJson) {
         throw new Error('User not found. Please log in again.');
       }
       const user = JSON.parse(userJson);
-  
-      // 1. Create FormData object
+
+      // Create FormData
       const formData = new FormData();
-  
-      // 2. Append all text fields
+      
+      // Append text fields
       formData.append('title', values.title);
       formData.append('description', values.description);
       formData.append('price', values.price);
       formData.append('category', values.category);
       formData.append('location', values.location);
-      
-      // 3. Add user information
       formData.append('user', user._id);
-      if (user.username) {
-        formData.append('username', user.username);
-      } else if (user.name) {
-        formData.append('username', user.name);
-      } else if (user.email) {
-        formData.append('username', user.email.split('@')[0]);
-      }
-      
-      console.log('User information added to form data:', {
-        userId: user._id,
-        username: user.username || user.name || user.email?.split('@')[0]
-      });
-  
-      // 4. Append all images with correct format for multer
-      for (let i = 0; i < values.images.length; i++) {
-        const image = values.images[i];
+
+      // Append images
+      values.images.forEach((image, index) => {
         const uriParts = image.uri.split('.');
         const fileType = uriParts[uriParts.length - 1].toLowerCase();
         const mimeType = image.type || `image/${fileType === 'jpg' ? 'jpeg' : fileType}`;
         
-        // @ts-ignore - React Native specific FormData append
-        formData.append('images', {
+        // Create a file object from the image URI
+        const file = {
           uri: image.uri,
           type: mimeType,
-          name: `image-${Date.now()}-${i}.${fileType}`
-        });
-      }
-      
-      console.log("Sending form data to backend...");
-      
-      // Log the form data being sent (without sensitive info)
+          name: `image-${Date.now()}-${index}.${fileType}`
+        };
+        
+        // @ts-ignore - Append the file object directly
+        formData.append('images', file);
+      });
+
       console.log('Submitting item with data:', {
         title: values.title,
         category: values.category,
         imageCount: values.images.length,
-        userId: user?._id
+        userId: user._id
       });
-  
-      // 6. Prepare and send the request
-      console.log('Sending request to /api/v1/items endpoint...');
-      
-      // Log form data for debugging (using FormData methods)
-      console.log('Form data being sent...');
-      const formDataObj: Record<string, any> = {};
-      
-      // Type assertion for FormData entries
-      const formDataEntries = Array.from((formData as any)._parts || []);
-      for (const [key, value] of formDataEntries as [string, any][]) {
-        formDataObj[key] = value && typeof value === 'object' && 'size' in value ? 
-          `[file ${value.size} bytes]` : 
-          (typeof value === 'string' && value.length > 100 ? `${value.substring(0, 100)}...` : value);
-      }
-      console.log('Form data preview:', formDataObj);
-      
-      // Get auth token
-      const authToken = await AsyncStorage.getItem('authToken');
-      const cleanToken = authToken?.replace(/^"|"$/g, '').trim();
-      
-      if (!cleanToken) {
-        throw new Error('No authentication token found. Please log in again.');
-      }
-      
-      console.log('Auth token being used (first 10 chars):', cleanToken.substring(0, 10) + '...');
-      
-      // Prepare headers
-      const headers = {
-        'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${cleanToken}`
-      };
-      
-      console.log('Request headers:', { ...headers, Authorization: 'Bearer [token]' });
-      
-      // Make the API request
-      const response = await api.post(
-        '/api/v1/items',
-        formData,
-        {
-          headers,
-          timeout: 30000,
-          withCredentials: true,
-        }
-      );
-      
-      console.log('Response received:', {
-        status: response.status,
-        data: response.data ? 'Received response data' : 'No data in response'
+
+      // Make the API call
+      const response = await api.post('/api/v1/items', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-      
-      return response;
-      
-      if (response && response.data) {
-        console.log('Item created successfully:', response.data);
+
+      if (response?.data) {
         Alert.alert("Success", "Item listed successfully");
-        
-        // Reset form after successful submission
         setFormKey(prevKey => prevKey + 1);
         return response.data;
       } else {
         throw new Error("No response data received from server");
       }
-      
     } catch (error: any) {
-      const errorInfo = {
-        message: error.message,
-        ...(error.response ? {
-          status: error.response.status,
-          statusText: error.response.statusText,
-          data: error.response.data || 'No data in error response'
-        } : {
-          status: 'No response',
-          data: error.request ? 'No response received' : 'Request not sent'
-        }),
-        ...(error.config ? {
-          url: error.config.url,
-          method: error.config.method,
-          timeout: error.config.timeout,
-          headers: {
-            ...error.config.headers,
-            Authorization: error.config.headers?.Authorization ? 
-              'Bearer [token]' : 
-              'No Authorization header'
-          }
-        } : {})
-      };
+      console.error('Error in handleSubmit:', error);
       
-      console.error('Error in handleSubmit:', JSON.stringify(errorInfo, null, 2));
-      
-      if (error.response?.status === 401) {
-        // Clear tokens and redirect to login
-        await AsyncStorage.removeItem('authToken');
-        await AsyncStorage.removeItem('refreshToken');
-        Alert.alert('Session Expired', 'Please log in again.', [
-          { text: 'OK', onPress: () => navigation.navigate('Login' as never) }
-        ]);
-        return;
-      }
-      
-      let errorMessage = "Failed to list item. ";
+      let errorMessage = "Failed to list item. Please try again.";
       
       if (error.code === 'ECONNABORTED') {
         errorMessage = "Request timed out. Please check your connection and try again.";
       } else if (error.response?.status === 401) {
         errorMessage = "Session expired. Please log in again.";
-        // Clear tokens
-        await AsyncStorage.removeItem('authToken');
-        await AsyncStorage.removeItem('refreshToken');
-        // Show alert before navigating
+        await AsyncStorage.clear();
         Alert.alert('Session Expired', 'Please log in again.', [
           { text: 'OK', onPress: () => navigation.navigate('Login' as never) }
         ]);
+        return;
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -407,7 +299,8 @@ const ListItems = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }
+  };
+  
 
   return (
     <ScrollView style={styles.container}>
